@@ -1,7 +1,6 @@
-"""Modul player.py - Definice třídy Player pro hru Vojna."""
-
 from typing import List
 from modules.card import Card
+from modules.deck import Deck
 
 
 class Player:
@@ -54,7 +53,7 @@ if __name__ == "__main__":
     card2 = player2.play_card()
 
     print(f"{player1.name} zahrál: {card1}")  # Očekávaný výstup: První karta hráče Alice
-    print(f"{player2.name} zahrál: {card2}")  # Očekávaný výstup: První karta hráče Boba
+    print(f"{player2.name} zahrál: {card2}")  # Očekávaný výstup: První karta hráče Bob
 
     player1.collect_cards([card1, card2])  # Alice vyhrála obě karty
     print(f"{player1.name} nyní má {len(player1.hand)} karet.")  # Očekávaný výstup: 27

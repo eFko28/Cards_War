@@ -73,119 +73,207 @@ def log_action(func):
     return wrapper
 '''
 
-
 class WarGame:
     """Třída reprezentující hru Vojna pro 2 až 4 hráče."""
 
     def __init__(self, player_names):
         """Inicializuje hru, vytvoří balíček a rozdělí karty mezi hráče."""
-        if not 2 <= len(player_names) <= 4:
+        if len(player_names) < 2 or len(player_names) > 4:
             raise ValueError("Hra může mít pouze 2 až 4 hráče.")
 
         deck = Deck()
         hands = self.split_deck_for_players(deck, len(player_names))
 
-        self.players = [Player(name, hand) for name, hand in zip(player_names, hands)]
+        self.players = []
+        i = 0
+        while i < len(player_names):
+            self.players.append(Player(player_names[i], hands[i]))
+            i = i + 1
+
         self.round_count = 0
 
-        log_message(f"Hra zahájena: {', '.join(player_names)}")
+        # Build up the string exactly like the original print output
+        names_str = ""
+        j = 0
+        while j < len(player_names):
+            names_str = names_str + player_names[j]
+            if j != len(player_names) - 1:
+                names_str = names_str + ", "
+            j = j + 1
 
+        log_message("Hra zahájena: " + names_str)
 
     def split_deck_for_players(self, deck, num_players):
         """Rozdělí balíček mezi hráče."""
-        deck.shuffle()
-        return [deck.cards[i::num_players] for i in range(num_players)]
-
+        deck.shuffle_cards()
+        result = []
+        i = 0
+        while i < num_players:
+            hand = []
+            j = i
+            while j < len(deck.cards):
+                hand.append(deck.cards[j])
+                j = j + num_players
+            result.append(hand)
+            i = i + 1
+        return result
 
     def play_round(self):
         """Odehraje jedno kolo hry."""
-        self.round_count += 1
-        
-        # pseudoošetření pro případ, že se hra zacyklila a nevede k výsledku
+        self.round_count = self.round_count + 1
+
         if self.round_count > 1000:
             log_message("\nHra se zacyklila! Je to nuda. Remíza.\n\n\n")
+            import sys
             sys.exit("Hra se zacyklila! Je to nuda. Remíza.\n\n\n")
-        
-        print(f"\n=== Kolo {self.round_count} ===")
 
-        # Každý hráč zahraje kartu
-        played_cards = {player: player.play_card() for player in self.players if player.has_cards()}
+        # Print round header (the output remains the same)
+        print("\n=== Kolo " + str(self.round_count) + " ===")
 
-        """ Čitelnější varianta předchozího řádku:
-        played_cards = {}  # Vytvoříme prázdný slovník
+        # Each player plays a card; build the dictionary manually
+        played_cards = {}
+        index = 0
+        while index < len(self.players):
+            if self.players[index].has_cards():
+                card = self.players[index].play_card()
+                played_cards[self.players[index]] = card
+            index = index + 1
 
-        for player in self.players:  # Procházíme seznam hráčů
-            if player.has_cards():  # Pokud hráč má karty
-                played_cards[player] = player.play_card()  # Zahraje kartu a uložíme ji do slovníku
-        """
+        # Print played cards
+        for player in played_cards:
+            print(player.name + " zahrál: " + str(played_cards[player]))
 
-        # Výpis odehraných karet
-        for player, card in played_cards.items():
-            print(f"{player.name} zahrál: {card}")
+        # Determine the maximum card value played
+        max_value = -1
+        for key in played_cards:
+            if played_cards[key].value > max_value:
+                max_value = played_cards[key].value
 
-        # Určíme vítěze kola
-        max_value = max(card.value for card in played_cards.values())
-        winners = [player for player, card in played_cards.items() if card.value == max_value]
+        winners = []
+        for key in played_cards:
+            if played_cards[key].value == max_value:
+                winners.append(key)
 
         if len(winners) == 1:
             winner = winners[0]
-            print(f"{winner.name} vyhrává kolo!")
-            winner.collect_cards(list(played_cards.values()))
-            log_message(f"Kolo {self.round_count}: {', '.join(f'{p.name} {c}' for p, c in played_cards.items())} → Vítěz: {winner.name}")
+            print(winner.name + " vyhrává kolo!")
+            all_cards = []
+            for key in played_cards:
+                all_cards.append(played_cards[key])
+            winner.collect_cards(all_cards)
+            log_text = "Kolo " + str(self.round_count) + ": "
+            for key in played_cards:
+                log_text = log_text + key.name + " " + str(played_cards[key]) + ", "
+            log_text = log_text + "→ Vítěz: " + winner.name
+            log_message(log_text)
         else:
-            print(f"Remíza mezi {', '.join(player.name for player in winners)}! VOJNA!")
-            self.war(winners, list(played_cards.values()))
+            names = ""
+            k = 0
+            while k < len(winners):
+                names = names + winners[k].name
+                if k != len(winners) - 1:
+                    names = names + ", "
+                k = k + 1
+            print("Remíza mezi " + names + "! VOJNA!")
+            temp_cards = []
+            for key in played_cards:
+                temp_cards.append(played_cards[key])
+            self.war(winners, temp_cards)
 
-        # Výpis stavu hráčů
-        print(" | ".join(str(player) for player in self.players))
-        # time.sleep(1)
-
+        # Print players' status
+        status = ""
+        m = 0
+        while m < len(self.players):
+            status = status + str(self.players[m])
+            if m != len(self.players) - 1:
+                status = status + " | "
+            m = m + 1
+        print(status)
 
     def war(self, tied_players, war_pile):
         """Řeší vojnu mezi více hráči."""
-        for player in tied_players:
-            if len(player.hand) < 2:
-                print(f"{player.name} nemá dost karet na vojnu a prohrává!")
-                self.players.remove(player)
+        i = 0
+        while i < len(tied_players):
+            if len(tied_players[i].hand) < 2:
+                print(tied_players[i].name + " nemá dost karet na vojnu a prohrává!")
+                self.players.remove(tied_players[i])
                 return
-        
+            i = i + 1
+
         print("Každý hráč přidává jednu kartu lícem dolů...")
-        for player in tied_players:
-            war_pile.append(player.play_card())
+        i = 0
+        while i < len(tied_players):
+            war_pile.append(tied_players[i].play_card())
+            i = i + 1
 
         print("Každý hráč přidává jednu kartu lícem nahoru...")
-        new_played_cards = {player: player.play_card() for player in tied_players}
-        war_pile.extend(new_played_cards.values())
+        new_played_cards = {}
+        i = 0
+        while i < len(tied_players):
+            new_played_cards[tied_players[i]] = tied_players[i].play_card()
+            i = i + 1
 
-        for player, card in new_played_cards.items():
-            print(f"{player.name} zahrál: {card}")
+        for player in new_played_cards:
+            print(player.name + " zahrál: " + str(new_played_cards[player]))
 
-        # Určíme vítěze vojny
-        max_value = max(card.value for card in new_played_cards.values())
-        winners = [player for player, card in new_played_cards.items() if card.value == max_value]
+        max_value = -1
+        for key in new_played_cards:
+            if new_played_cards[key].value > max_value:
+                max_value = new_played_cards[key].value
+
+        winners = []
+        for key in new_played_cards:
+            if new_played_cards[key].value == max_value:
+                winners.append(key)
+
+        for key in new_played_cards:
+            war_pile.append(new_played_cards[key])
 
         if len(winners) == 1:
             winner = winners[0]
-            print(f"{winner.name} vyhrává VOJNU!")
+            print(winner.name + " vyhrává VOJNU!")
             winner.collect_cards(war_pile)
-            log_message(f"VOJNA mezi {', '.join(p.name for p in tied_players)} → Vítěz: {winner.name}")
+            log_message("VOJNA mezi " + ", ".join(p.name for p in tied_players) + " → Vítěz: " + winner.name)
         else:
             print("Další remíza! VOJNA pokračuje!")
             self.war(winners, war_pile)
 
-
     def play_game(self):
         """Spustí hru a pokračuje, dokud nezůstane jeden hráč s kartami."""
         print("\n=== Začíná hra Vojna! ===")
-        print(f"Hrají: {', '.join(player.name for player in self.players)}")
+        names_str = ""
+        i = 0
+        while i < len(self.players):
+            names_str = names_str + self.players[i].name
+            if i != len(self.players) - 1:
+                names_str = names_str + ", "
+            i = i + 1
+        print("Hrají: " + names_str)
 
-        while len([player for player in self.players if player.has_cards()]) > 1:
+        while True:
+            active = []
+            i = 0
+            while i < len(self.players):
+                if self.players[i].has_cards():
+                    active.append(self.players[i])
+                i = i + 1
+            if len(active) <= 1:
+                break
             self.play_round()
 
-        winner = next(player for player in self.players if player.has_cards())
-        print(f"\n=== Konec hry! Vítěz: {winner.name} ===\n\n\n")
-        log_message(f"Hra skončila! Vítěz: {winner.name}")
-        log_message(f"\n\n ============================================= \n\n\n")
+        winner = None
+        i = 0
+        while i < len(self.players):
+            if self.players[i].has_cards():
+                winner = self.players[i]
+                break
+            i = i + 1
+
+        if winner is not None:
+            print("\n=== Konec hry! Vítěz: " + winner.name + " ===\n\n\n")
+            log_message("Hra skončila! Vítěz: " + winner.name)
+            log_message("\n\n ============================================= \n\n\n")
+
 
 ############## MAIN ##############
 if __name__ == "__main__":

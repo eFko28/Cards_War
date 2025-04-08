@@ -1,6 +1,3 @@
-"""Modul card.py - Trida Card pro hru Vojna."""
-
-# Barvy karet
 SUITS = ["♠", "♥", "♦", "♣"]
 
 class Card:

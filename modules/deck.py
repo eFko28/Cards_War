@@ -1,7 +1,5 @@
-"""Modul deck.py - Definice třídy Deck pro správu balíčku karet ve hře Vojna."""
-
 import random
-from modules.card import Card, SUITS  # Importujeme třídu Card a konstantu SUITS
+from modules.card import Card, SUITS
 
 # Konstanty pro hodnoty karet v balíčku
 CARD_VALUES = list(range(2, 15))
